@@ -1,202 +1,513 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>PNP Philippines 18-Region Map</title>
 
-  <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  >
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 
   <style>
     html,
-    body,
-    #map {
+    body {
       width: 100%;
       height: 100%;
       margin: 0;
       padding: 0;
-    }
-
-    body {
-      background: #ffffff;
       overflow: hidden;
+      background: transparent;
+      font-family: Arial, Helvetica, sans-serif;
     }
 
     #map {
-      background: #ffffff;
+      width: 100%;
+      height: 100%;
     }
 
-    /* Clean tooltip */
-    .leaflet-tooltip {
-      background: #ffffff;
-      color: #1f1f1f;
-      border: 1px solid #999999;
-      border-radius: 4px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-      font-family: Arial, sans-serif;
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .region {
+      stroke: #ffffff;
+      stroke-width: 1.2;
+      vector-effect: non-scaling-stroke;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+
+    .region:hover {
+      opacity: 0.78;
+      stroke: #1f2937;
+      stroke-width: 2;
+    }
+
+    #tooltip {
+      position: fixed;
+      display: none;
+      pointer-events: none;
+      z-index: 9999;
+
+      min-width: 150px;
+      padding: 9px 12px;
+
+      color: #ffffff;
+      background: rgba(20, 32, 50, 0.94);
+
+      border-radius: 5px;
+
+      font-size: 12px;
+      line-height: 1.45;
+
+      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+    }
+
+    .tooltip-region {
+      font-weight: 700;
       font-size: 13px;
-      font-weight: 600;
-      padding: 6px 9px;
+      margin-bottom: 3px;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="map"></div>
+<div id="map"></div>
+<div id="tooltip"></div>
 
-  <!-- Leaflet JavaScript -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-  </script>
+<script>
 
-  <script>
-
-    // -----------------------------------------
-    // 1. CREATE MAP
-    // -----------------------------------------
-
-    const map = L.map('map', {
-      zoomControl: false,
-      attributionControl: false
-    });
+/* =========================================================
+   PNP PHILIPPINES REGIONAL MAP
+   GitHub Pages / Looker Studio URL Embed
+   ========================================================= */
 
 
-    // -----------------------------------------
-    // 2. LOAD PHILIPPINES 18-REGION GEOJSON
-    // -----------------------------------------
+/* ---------------------------------------------------------
+   1. READ VALUES FROM URL
+   --------------------------------------------------------- */
 
-    fetch('Philippines_2026_18_Regions.geojson')
+const params = new URLSearchParams(window.location.search);
 
-      .then(response => {
 
-        if (!response.ok) {
-          throw new Error(
-            'Unable to load GeoJSON file: ' +
-            response.status
+/*
+Example:
+
+?NCR=10288&CAR=2572&Region%20I=4143
+*/
+
+
+/* ---------------------------------------------------------
+   2. REGION NAME NORMALIZER
+   --------------------------------------------------------- */
+
+function normalizeRegion(value) {
+
+  if (!value) return "";
+
+  return String(value)
+    .trim()
+    .toUpperCase()
+    .replace(/\./g, "")
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ");
+
+}
+
+
+/* ---------------------------------------------------------
+   3. REGION ALIASES
+   --------------------------------------------------------- */
+
+const aliases = {
+
+  "NATIONAL CAPITAL REGION": "NCR",
+  "NCR": "NCR",
+
+  "CORDILLERA ADMINISTRATIVE REGION": "CAR",
+  "CAR": "CAR",
+
+  "REGION I": "REGION I",
+  "REGION 1": "REGION I",
+  "ILOCOS REGION": "REGION I",
+
+  "REGION II": "REGION II",
+  "REGION 2": "REGION II",
+  "CAGAYAN VALLEY": "REGION II",
+
+  "REGION III": "REGION III",
+  "REGION 3": "REGION III",
+  "CENTRAL LUZON": "REGION III",
+
+  "REGION IV A": "REGION IV-A",
+  "REGION IVA": "REGION IV-A",
+  "CALABARZON": "REGION IV-A",
+
+  "MIMAROPA": "MIMAROPA",
+  "REGION IV B": "MIMAROPA",
+  "REGION IVB": "MIMAROPA",
+
+  "REGION V": "REGION V",
+  "REGION 5": "REGION V",
+  "BICOL REGION": "REGION V",
+
+  "REGION VI": "REGION VI",
+  "REGION 6": "REGION VI",
+  "WESTERN VISAYAS": "REGION VI",
+
+  "REGION VII": "REGION VII",
+  "REGION 7": "REGION VII",
+  "CENTRAL VISAYAS": "REGION VII",
+
+  "REGION VIII": "REGION VIII",
+  "REGION 8": "REGION VIII",
+  "EASTERN VISAYAS": "REGION VIII",
+
+  "REGION IX": "REGION IX",
+  "REGION 9": "REGION IX",
+  "ZAMBOANGA PENINSULA": "REGION IX",
+
+  "REGION X": "REGION X",
+  "REGION 10": "REGION X",
+  "NORTHERN MINDANAO": "REGION X",
+
+  "REGION XI": "REGION XI",
+  "REGION 11": "REGION XI",
+  "DAVAO REGION": "REGION XI",
+
+  "REGION XII": "REGION XII",
+  "REGION 12": "REGION XII",
+  "SOCCSKSARGEN": "REGION XII",
+
+  "REGION XIII": "REGION XIII",
+  "REGION 13": "REGION XIII",
+  "CARAGA": "REGION XIII",
+
+  "BARMM": "BARMM",
+  "BANGSAMORO AUTONOMOUS REGION IN MUSLIM MINDANAO": "BARMM",
+
+  "NIR": "NIR",
+  "NEGROS ISLAND REGION": "NIR"
+
+};
+
+
+function canonicalRegion(value) {
+
+  const normalized = normalizeRegion(value);
+
+  return aliases[normalized] || normalized;
+
+}
+
+
+/* ---------------------------------------------------------
+   4. READ DATA FROM URL
+   --------------------------------------------------------- */
+
+const regionData = {};
+
+for (const [key, value] of params.entries()) {
+
+  const region = canonicalRegion(key);
+
+  const number =
+    Number(
+      String(value)
+        .replace(/,/g, "")
+        .trim()
+    );
+
+  if (!Number.isNaN(number)) {
+    regionData[region] = number;
+  }
+
+}
+
+
+/* ---------------------------------------------------------
+   5. NUMBER FORMAT
+   --------------------------------------------------------- */
+
+const numberFormat = new Intl.NumberFormat("en-US");
+
+
+/* ---------------------------------------------------------
+   6. SVG
+   --------------------------------------------------------- */
+
+const container = document.getElementById("map");
+
+const svg = d3
+  .select("#map")
+  .append("svg")
+  .attr("preserveAspectRatio", "xMidYMid meet");
+
+
+const g = svg.append("g");
+
+
+/* ---------------------------------------------------------
+   7. TOOLTIP
+   --------------------------------------------------------- */
+
+const tooltip = d3.select("#tooltip");
+
+
+/* ---------------------------------------------------------
+   8. LOAD PHILIPPINES GEOJSON
+   --------------------------------------------------------- */
+
+d3.json("Philippines_2026_18_Regions.geojson")
+  .then(function(geojson) {
+
+
+    /* -----------------------------------------------------
+       FIND REGION PROPERTY AUTOMATICALLY
+       ----------------------------------------------------- */
+
+    console.log(
+      "GeoJSON sample properties:",
+      geojson.features[0].properties
+    );
+
+
+    /* -----------------------------------------------------
+       SIZE MAP
+       ----------------------------------------------------- */
+
+    function drawMap() {
+
+      const width =
+        container.clientWidth || 700;
+
+      const height =
+        container.clientHeight || 800;
+
+
+      svg
+        .attr("viewBox", `0 0 ${width} ${height}`);
+
+
+      const projection =
+        d3.geoMercator()
+          .fitExtent(
+            [
+              [15, 15],
+              [width - 15, height - 15]
+            ],
+            geojson
           );
-        }
-
-        return response.json();
-
-      })
-
-      .then(data => {
-
-        // -------------------------------------
-        // 3. CREATE REGION LAYER
-        // -------------------------------------
-
-        const regionLayer = L.geoJSON(data, {
-
-          style: function(feature) {
-
-            return {
-              color: '#4a4a4a',
-              weight: 1,
-              opacity: 1,
-
-              fillColor: '#d9e8f5',
-              fillOpacity: 1
-            };
-
-          },
 
 
-          // -----------------------------------
-          // 4. REGION TOOLTIPS + HOVER
-          // -----------------------------------
-
-          onEachFeature: function(feature, layer) {
-
-            const properties =
-              feature.properties || {};
-
-            const region =
-              properties.Region_Display ||
-              properties.region ||
-              properties.psgc_name ||
-              'Region';
+      const path =
+        d3.geoPath()
+          .projection(projection);
 
 
-            // Tooltip
-            layer.bindTooltip(
-              region,
-              {
-                sticky: true,
-                direction: 'auto'
-              }
+      /* ---------------------------------------------------
+         FIND VALUES
+         --------------------------------------------------- */
+
+      const values =
+        Object.values(regionData)
+          .filter(v => Number.isFinite(v));
+
+
+      const maxValue =
+        values.length
+          ? d3.max(values)
+          : 1;
+
+
+      /* ---------------------------------------------------
+         COLOR SCALE
+         --------------------------------------------------- */
+
+      const colorScale =
+        d3.scaleSequential()
+          .domain([0, maxValue])
+          .interpolator(d3.interpolateBlues);
+
+
+      /* ---------------------------------------------------
+         CLEAR OLD MAP
+         --------------------------------------------------- */
+
+      g.selectAll("*").remove();
+
+
+      /* ---------------------------------------------------
+         DRAW REGIONS
+         --------------------------------------------------- */
+
+      g
+        .selectAll("path")
+        .data(geojson.features)
+        .join("path")
+
+        .attr("class", "region")
+
+        .attr("d", path)
+
+        .attr("fill", function(d) {
+
+          const props = d.properties || {};
+
+
+          /*
+          Try common GeoJSON region fields.
+          */
+
+          const rawRegion =
+            props.Region ||
+            props.REGION ||
+            props.region ||
+            props.Region_Name ||
+            props.REGION_NAME ||
+            props.NAME_1 ||
+            props.name ||
+            props.NAME ||
+            "";
+
+
+          const region =
+            canonicalRegion(rawRegion);
+
+
+          const value =
+            regionData[region];
+
+
+          if (
+            value === undefined ||
+            value === null ||
+            Number.isNaN(value)
+          ) {
+
+            return "#dce6ef";
+
+          }
+
+
+          return colorScale(value);
+
+        })
+
+
+        /* -------------------------------------------------
+           TOOLTIP
+           ------------------------------------------------- */
+
+        .on("mousemove", function(event, d) {
+
+          const props = d.properties || {};
+
+
+          const rawRegion =
+            props.Region ||
+            props.REGION ||
+            props.region ||
+            props.Region_Name ||
+            props.REGION_NAME ||
+            props.NAME_1 ||
+            props.name ||
+            props.NAME ||
+            "Region";
+
+
+          const region =
+            canonicalRegion(rawRegion);
+
+
+          const value =
+            regionData[region];
+
+
+          tooltip
+            .style("display", "block")
+
+            .style(
+              "left",
+              (event.clientX + 14) + "px"
+            )
+
+            .style(
+              "top",
+              (event.clientY + 14) + "px"
+            )
+
+            .html(
+              `
+              <div class="tooltip-region">
+                ${rawRegion}
+              </div>
+
+              <div>
+                8FC Total:
+                ${
+                  value !== undefined
+                    ? numberFormat.format(value)
+                    : "No data"
+                }
+              </div>
+              `
             );
 
-
-            // Hover effect
-            layer.on({
-
-              mouseover: function(event) {
-
-                event.target.setStyle({
-                  weight: 2,
-                  color: '#1f1f1f',
-                  fillOpacity: 0.85
-                });
-
-                event.target.bringToFront();
-
-              },
+        })
 
 
-              mouseout: function(event) {
+        .on("mouseleave", function() {
 
-                regionLayer.resetStyle(
-                  event.target
-                );
+          tooltip
+            .style("display", "none");
 
-              }
+        });
 
-            });
-
-          }
-
-        }).addTo(map);
+    }
 
 
-        // -------------------------------------
-        // 5. AUTOMATICALLY FIT PHILIPPINES
-        // -------------------------------------
+    /* -----------------------------------------------------
+       INITIAL DRAW
+       ----------------------------------------------------- */
 
-        map.fitBounds(
-          regionLayer.getBounds(),
-          {
-            padding: [20, 20]
-          }
-        );
-
-      })
+    drawMap();
 
 
-      // ---------------------------------------
-      // 6. ERROR HANDLING
-      // ---------------------------------------
+    /* -----------------------------------------------------
+       RESPONSIVE RESIZE
+       ----------------------------------------------------- */
 
-      .catch(error => {
+    window.addEventListener(
+      "resize",
+      drawMap
+    );
 
-        console.error(
-          'GeoJSON loading error:',
-          error
-        );
 
-      });
+  })
 
-  </script>
+
+  .catch(function(error) {
+
+    console.error(error);
+
+    document.getElementById("map").innerHTML =
+      `
+      <div style="
+        padding:20px;
+        font-family:Arial;
+        color:#b91c1c;
+      ">
+        Unable to load Philippines GeoJSON.
+      </div>
+      `;
+
+  });
+
+</script>
 
 </body>
 </html>
