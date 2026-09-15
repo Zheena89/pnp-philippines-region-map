@@ -1,0 +1,24 @@
+{
+  "name": "PNP Philippines 18-Region Map",
+  "organization": "PNP",
+  "description": "Interactive choropleth map of the Philippines using the 18-region administrative structure for Looker Studio.",
+  "logoUrl": "",
+  "packageUrl": "",
+  "organizationUrl": "",
+  "supportUrl": "",
+  "privacyPolicyUrl": "",
+  "termsOfServiceUrl": "",
+  "devMode": true,
+  "components": [
+    {
+      "id": "philippines_region_map",
+      "name": "Philippines 18-Region Map",
+      "description": "Custom choropleth map for Philippine regional operational data.",
+      "resource": {
+        "js": "visualization.js",
+        "config": "config.json",
+        "css": "visualization.css"
+      }
+    }
+  ]
+}
