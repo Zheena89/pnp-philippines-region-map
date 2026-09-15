@@ -1,69 +1,202 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>PNP Philippines 18-Region Map</title>
 
+  <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  >
 
   <style>
-    html, body, #map {
+    html,
+    body,
+    #map {
       width: 100%;
       height: 100%;
       margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    #map {
+      background: #ffffff;
+    }
+
+    /* Clean tooltip */
+    .leaflet-tooltip {
+      background: #ffffff;
+      color: #1f1f1f;
+      border: 1px solid #999999;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 9px;
     }
   </style>
 </head>
 
 <body>
 
-<div id="map"></div>
+  <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet JavaScript -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+  </script>
 
-<script>
-const map = L.map('map').setView([12.5, 122], 5);
+  <script>
 
-fetch('Philippines_2026_18_Regions.geojson')
-  .then(response => response.json())
-  .then(data => {
+    // -----------------------------------------
+    // 1. CREATE MAP
+    // -----------------------------------------
 
-    const regionLayer = L.geoJSON(data, {
+    const map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false
+    });
 
-      style: function(feature) {
-        return {
-          color: '#ffffff',
-          weight: 1,
-          fillColor: '#1f5fa9',
-          fillOpacity: 0.75
-        };
-      },
 
-      onEachFeature: function(feature, layer) {
+    // -----------------------------------------
+    // 2. LOAD PHILIPPINES 18-REGION GEOJSON
+    // -----------------------------------------
 
-        const region =
-          feature.properties.Region_Display ||
-          feature.properties.region ||
-          feature.properties.psgc_name ||
-          'Region';
+    fetch('Philippines_2026_18_Regions.geojson')
 
-        layer.bindTooltip(region);
+      .then(response => {
 
-      }
+        if (!response.ok) {
+          throw new Error(
+            'Unable to load GeoJSON file: ' +
+            response.status
+          );
+        }
 
-    }).addTo(map);
+        return response.json();
 
-    map.fitBounds(regionLayer.getBounds());
+      })
 
-  })
-  .catch(error => {
-    console.error('GeoJSON loading error:', error);
-  });
+      .then(data => {
 
-</script>
+        // -------------------------------------
+        // 3. CREATE REGION LAYER
+        // -------------------------------------
+
+        const regionLayer = L.geoJSON(data, {
+
+          style: function(feature) {
+
+            return {
+              color: '#4a4a4a',
+              weight: 1,
+              opacity: 1,
+
+              fillColor: '#d9e8f5',
+              fillOpacity: 1
+            };
+
+          },
+
+
+          // -----------------------------------
+          // 4. REGION TOOLTIPS + HOVER
+          // -----------------------------------
+
+          onEachFeature: function(feature, layer) {
+
+            const properties =
+              feature.properties || {};
+
+            const region =
+              properties.Region_Display ||
+              properties.region ||
+              properties.psgc_name ||
+              'Region';
+
+
+            // Tooltip
+            layer.bindTooltip(
+              region,
+              {
+                sticky: true,
+                direction: 'auto'
+              }
+            );
+
+
+            // Hover effect
+            layer.on({
+
+              mouseover: function(event) {
+
+                event.target.setStyle({
+                  weight: 2,
+                  color: '#1f1f1f',
+                  fillOpacity: 0.85
+                });
+
+                event.target.bringToFront();
+
+              },
+
+
+              mouseout: function(event) {
+
+                regionLayer.resetStyle(
+                  event.target
+                );
+
+              }
+
+            });
+
+          }
+
+        }).addTo(map);
+
+
+        // -------------------------------------
+        // 5. AUTOMATICALLY FIT PHILIPPINES
+        // -------------------------------------
+
+        map.fitBounds(
+          regionLayer.getBounds(),
+          {
+            padding: [20, 20]
+          }
+        );
+
+      })
+
+
+      // ---------------------------------------
+      // 6. ERROR HANDLING
+      // ---------------------------------------
+
+      .catch(error => {
+
+        console.error(
+          'GeoJSON loading error:',
+          error
+        );
+
+      });
+
+  </script>
 
 </body>
 </html>
